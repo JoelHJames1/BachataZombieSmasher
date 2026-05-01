@@ -1,0 +1,12 @@
+# macOS
+.DS_Store
+
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# Asset pipeline backups (large PNGs, regeneratable)
+_resource_originals/
+_resource_centered_originals/

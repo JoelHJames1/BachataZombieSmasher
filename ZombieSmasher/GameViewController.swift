@@ -1,55 +1,65 @@
-//
-//  GameViewController.swift
-//  ZombieSmasher
-//
-//  Created by Joel Hernandez on 4/30/26.
-//
-
 import UIKit
 import SpriteKit
-import GameplayKit
 
 class GameViewController: UIViewController {
 
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        
-        // Load 'GameScene.sks' as a GKScene. This provides gameplay related content
-        // including entities and graphs.
-        if let scene = GKScene(fileNamed: "GameScene") {
-            
-            // Get the SKScene from the loaded GKScene
-            if let sceneNode = scene.rootNode as! GameScene? {
-                
-                // Copy gameplay related content over to the scene
-                sceneNode.entities = scene.entities
-                sceneNode.graphs = scene.graphs
-                
-                // Set the scale mode to scale to fit the window
-                sceneNode.scaleMode = .aspectFill
-                
-                // Present the scene
-                if let view = self.view as! SKView? {
-                    view.presentScene(sceneNode)
-                    
-                    view.ignoresSiblingOrder = true
-                    
-                    view.showsFPS = true
-                    view.showsNodeCount = true
-                }
+    static weak var current: GameViewController?
+    static var preferredOrientations: UIInterfaceOrientationMask = .portrait
+    static var pendingTransition: ((CGSize) -> Void)?
+
+    override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
+        super.viewWillTransition(to: size, with: coordinator)
+        coordinator.animate(alongsideTransition: nil) { _ in
+            if let cb = Self.pendingTransition {
+                Self.pendingTransition = nil
+                cb(size)
             }
         }
     }
 
-    override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
-        if UIDevice.current.userInterfaceIdiom == .phone {
-            return .allButUpsideDown
-        } else {
-            return .all
-        }
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        Self.current = self
+
+        guard let skView = view as? SKView else { return }
+
+        let scene = MainMenuScene(size: skView.bounds.size)
+        scene.scaleMode = .resizeFill
+        skView.presentScene(scene)
+
+        skView.ignoresSiblingOrder = true
+        skView.showsFPS = false
+        skView.showsNodeCount = false
+        AssetCatalog.preloadAll()
     }
 
-    override var prefersStatusBarHidden: Bool {
-        return true
+    override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
+        Self.preferredOrientations
+    }
+
+    override var prefersStatusBarHidden: Bool { true }
+
+    static func requestOrientationUpdate(_ mask: UIInterfaceOrientationMask) {
+        preferredOrientations = mask
+        guard let vc = current else { return }
+        if #available(iOS 16.0, *) {
+            vc.setNeedsUpdateOfSupportedInterfaceOrientations()
+            DispatchQueue.main.async {
+                let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+                for scene in scenes {
+                    let pref = UIWindowScene.GeometryPreferences.iOS(interfaceOrientations: mask)
+                    scene.requestGeometryUpdate(pref) { _ in }
+                }
+            }
+        } else {
+            let value: Int
+            if mask.contains(.landscape) {
+                value = UIInterfaceOrientation.landscapeRight.rawValue
+            } else {
+                value = UIInterfaceOrientation.portrait.rawValue
+            }
+            UIDevice.current.setValue(value, forKey: "orientation")
+            UIViewController.attemptRotationToDeviceOrientation()
+        }
     }
 }
