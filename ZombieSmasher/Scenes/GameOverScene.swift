@@ -5,11 +5,13 @@ final class GameOverScene: SKScene {
     private let level: Int
     private let won: Bool
     private let kills: Int
+    private let survivalTime: TimeInterval
 
-    init(size: CGSize, level: Int, won: Bool, kills: Int) {
+    init(size: CGSize, level: Int, won: Bool, kills: Int, survivalTime: TimeInterval = 0) {
         self.level = level
         self.won = won
         self.kills = kills
+        self.survivalTime = survivalTime
         super.init(size: size)
     }
     required init?(coder: NSCoder) { fatalError() }
@@ -29,27 +31,49 @@ final class GameOverScene: SKScene {
         addChild(dim)
 
         let title = SKLabelNode(fontNamed: "AvenirNext-Heavy")
-        title.text = won ? "LEVEL \(level) CLEARED" : "YOU DIED"
-        title.fontSize = 38
-        title.fontColor = won ? .systemGreen : .systemRed
-        title.position = CGPoint(x: 0, y: size.height * 0.25)
+        title.text = "YOU DIED"
+        title.fontSize = 40
+        title.fontColor = .systemRed
+        title.position = CGPoint(x: 0, y: size.height * 0.28)
         title.zPosition = 10
         addChild(title)
 
-        let stat = SKLabelNode(fontNamed: "AvenirNext-Bold")
-        stat.text = "Kills: \(kills)"
-        stat.fontSize = 22
-        stat.fontColor = .white
-        stat.position = CGPoint(x: 0, y: size.height * 0.12)
-        stat.zPosition = 10
-        addChild(stat)
+        let minutes = Int(survivalTime) / 60
+        let seconds = Int(survivalTime) % 60
+        let timeLabel = SKLabelNode(fontNamed: "AvenirNext-Heavy")
+        timeLabel.text = String(format: "Survived  %d:%02d", minutes, seconds)
+        timeLabel.fontSize = 26
+        timeLabel.fontColor = .white
+        timeLabel.position = CGPoint(x: 0, y: size.height * 0.16)
+        timeLabel.zPosition = 10
+        addChild(timeLabel)
 
-        addButton(text: won ? "NEXT LEVEL" : "RETRY", y: -size.height * 0.05, name: "again", color: .systemRed)
-        addButton(text: "MAIN MENU", y: -size.height * 0.18, name: "menu", color: .darkGray)
+        let killsLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
+        killsLabel.text = "Kills  \(kills)"
+        killsLabel.fontSize = 22
+        killsLabel.fontColor = .white
+        killsLabel.position = CGPoint(x: 0, y: size.height * 0.08)
+        killsLabel.zPosition = 10
+        addChild(killsLabel)
+
+        // Best stats
+        let bestMin = Int(SaveManager.bestSurvivalTime) / 60
+        let bestSec = Int(SaveManager.bestSurvivalTime) % 60
+        let bestLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
+        bestLabel.text = String(format: "Best  %d:%02d  ·  %d kills",
+                                bestMin, bestSec, SaveManager.bestSurvivalKills)
+        bestLabel.fontSize = 16
+        bestLabel.fontColor = .systemYellow
+        bestLabel.position = CGPoint(x: 0, y: size.height * 0.01)
+        bestLabel.zPosition = 10
+        addChild(bestLabel)
+
+        addButton(text: "RETRY",     y: -size.height * 0.10, name: "again", color: .systemRed)
+        addButton(text: "MAIN MENU", y: -size.height * 0.32, name: "menu",  color: .darkGray)
     }
 
     private func addButton(text: String, y: CGFloat, name: String, color: UIColor) {
-        let btn = SKShapeNode(rectOf: CGSize(width: 240, height: 70), cornerRadius: 14)
+        let btn = SKShapeNode(rectOf: CGSize(width: 240, height: 64), cornerRadius: 14)
         btn.fillColor = color
         btn.strokeColor = .white
         btn.lineWidth = 3
@@ -62,6 +86,7 @@ final class GameOverScene: SKScene {
         label.fontSize = 22
         label.fontColor = .white
         label.verticalAlignmentMode = .center
+        label.name = name
         btn.addChild(label)
     }
 
@@ -71,8 +96,7 @@ final class GameOverScene: SKScene {
         for node in nodes(at: p) {
             switch node.name {
             case "again":
-                let next = (won && level < 5) ? level + 1 : level
-                let scene = GameScene(size: size, level: next)
+                let scene = GameScene(size: size, level: level)
                 scene.scaleMode = .resizeFill
                 view?.presentScene(scene, transition: .fade(withDuration: 0.4))
                 return

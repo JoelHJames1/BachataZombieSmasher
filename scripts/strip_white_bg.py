@@ -18,7 +18,7 @@ BACKUP = PROJECT / "_resource_originals"
 
 SKIP = {
     "Level1.png", "Level2.png", "Level3.png", "Level4.png", "Level5.png",
-    "MainMenuBackground.png",
+    "MainMenuBackground.png", "road.png",
 }
 
 THRESHOLD = 230  # R,G,B all >= this counts as "white-ish"

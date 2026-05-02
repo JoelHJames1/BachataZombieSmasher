@@ -20,12 +20,16 @@ addChild(dim)
 ```
 
 ### Logo (animated bachata sprite)
+
+**Important:** scale by **height**, not width — keeps the size stable when the
+asset pipeline changes the cell aspect ratio after a source-asset update.
+
 ```swift
 let frames = AssetCatalog.menuLogoFrames()
 let logo = SKSpriteNode(texture: frames.first)
-let maxW = size.width * 0.85
-logo.setScale(maxW / logo.size.width)
-logo.position = CGPoint(x: 0, y: size.height * 0.05)
+let maxH = size.height * 0.32
+logo.setScale(maxH / logo.size.height)
+logo.position = CGPoint(x: 0, y: -size.height * 0.02)
 logo.zPosition = 10
 addChild(logo)
 
@@ -33,6 +37,9 @@ if !frames.isEmpty {
     logo.run(.repeatForever(.animate(with: frames, timePerFrame: 0.25)))
 }
 ```
+
+The y of `-size.height * 0.02` puts the character's feet near the painted
+road surface, so he looks like he's dancing on the street.
 
 ### Start button (custom drawn, green with white)
 ```swift

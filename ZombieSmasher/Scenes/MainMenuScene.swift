@@ -30,9 +30,9 @@ final class MainMenuScene: SKScene {
     private func buildLogo() {
         let frames = AssetCatalog.menuLogoFrames()
         let logo = SKSpriteNode(texture: frames.first)
-        let maxW = size.width * 0.85
-        logo.setScale(maxW / logo.size.width)
-        logo.position = CGPoint(x: 0, y: size.height * 0.05)
+        let maxH = size.height * 0.32
+        logo.setScale(maxH / logo.size.height)
+        logo.position = CGPoint(x: 0, y: -size.height * 0.02)
         logo.zPosition = 10
         addChild(logo)
 
@@ -115,8 +115,20 @@ final class MainMenuScene: SKScene {
     }
 
     private func goToLevelSelect() {
-        let scene = LevelSelectScene(size: size)
-        scene.scaleMode = .resizeFill
-        view?.presentScene(scene, transition: .crossFade(withDuration: 0.4))
+        // Survival mode: skip level selection, jump straight into the arena.
+        let v = view
+        GameViewController.pendingTransition = { newSize in
+            guard let v else { return }
+            let scene = GameScene(size: newSize, level: 1)
+            scene.scaleMode = .resizeFill
+            v.presentScene(scene, transition: .fade(withDuration: 0.3))
+        }
+        GameViewController.requestOrientationUpdate(.landscape)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            if let cb = GameViewController.pendingTransition {
+                GameViewController.pendingTransition = nil
+                cb(v?.bounds.size ?? .zero)
+            }
+        }
     }
 }

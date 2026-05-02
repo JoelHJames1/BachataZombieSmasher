@@ -66,6 +66,6 @@ enum WeaponKind: Int, CaseIterable {
     }
 
     var hasInfiniteAmmo: Bool {
-        self == .handgun || self == .punch
+        self == .punch
     }
 }

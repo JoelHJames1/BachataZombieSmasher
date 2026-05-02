@@ -3,21 +3,37 @@ import SpriteKit
 final class Projectile: SKSpriteNode {
 
     let weapon: WeaponKind
+    let isFire: Bool
 
-    init(weapon: WeaponKind, direction: CGFloat) {
+    init(weapon: WeaponKind, direction: CGFloat, isFire: Bool = false) {
         self.weapon = weapon
-        let size: CGSize
-        let color: UIColor
+        self.isFire = isFire
+
+        let frames: [SKTexture]
+        let displaySize: CGSize
         switch weapon {
-        case .handgun: size = CGSize(width: 14, height: 5);  color = .systemYellow
-        case .rifle:   size = CGSize(width: 18, height: 4);  color = .systemOrange
-        case .bow:     size = CGSize(width: 32, height: 4);  color = .brown
-        default:       size = CGSize(width: 8, height: 8);   color = .red
+        case .handgun:
+            frames = AssetCatalog.bulletHandgunFrames()
+            displaySize = CGSize(width: 36, height: 14)
+        case .rifle:
+            frames = AssetCatalog.bulletRifleFrames()
+            displaySize = CGSize(width: 44, height: 14)
+        case .bow:
+            frames = isFire ? AssetCatalog.arrowFireFrames() : AssetCatalog.arrowNormalFrames()
+            displaySize = CGSize(width: 64, height: 16)
+        default:
+            frames = []
+            displaySize = CGSize(width: 8, height: 8)
         }
-        super.init(texture: nil, color: color, size: size)
+        let tex = frames.first ?? SKTexture()
+        super.init(texture: tex, color: frames.isEmpty ? .red : .clear, size: displaySize)
         zPosition = 60
         xScale = direction >= 0 ? 1 : -1
-        let body = SKPhysicsBody(rectangleOf: size)
+        if !frames.isEmpty {
+            run(.repeatForever(.animate(with: frames, timePerFrame: 1.0/14.0)))
+        }
+
+        let body = SKPhysicsBody(rectangleOf: displaySize)
         body.categoryBitMask = weapon == .bow ? PhysicsCategory.arrow : PhysicsCategory.bullet
         body.contactTestBitMask = PhysicsCategory.zombie
         body.collisionBitMask = 0
@@ -39,8 +55,10 @@ final class Grenade: SKSpriteNode {
     init(direction: CGFloat, onExplode: @escaping (CGPoint) -> Void) {
         self.direction = direction
         self.onExplode = onExplode
-        super.init(texture: nil, color: .darkGray, size: CGSize(width: 18, height: 18))
+        let tex = SKTexture(imageNamed: AssetCatalog.grenadeImage)
+        super.init(texture: tex, color: .clear, size: CGSize(width: 32, height: 32))
         zPosition = 60
+        run(.repeatForever(.rotate(byAngle: .pi * 2, duration: 0.6)))
         let body = SKPhysicsBody(circleOfRadius: 9)
         body.categoryBitMask = PhysicsCategory.grenade
         body.contactTestBitMask = PhysicsCategory.zombie
@@ -67,9 +85,9 @@ final class Explosion: SKSpriteNode {
     init() {
         let frames = AssetCatalog.explosionFrames()
         let tex = frames.first ?? SKTexture()
-        super.init(texture: tex, color: .clear, size: CGSize(width: 220, height: 220))
+        super.init(texture: tex, color: .clear, size: CGSize(width: 240, height: 240))
         zPosition = 70
-        let body = SKPhysicsBody(circleOfRadius: 100)
+        let body = SKPhysicsBody(circleOfRadius: 110)
         body.categoryBitMask = PhysicsCategory.explosion
         body.contactTestBitMask = PhysicsCategory.zombie | PhysicsCategory.player
         body.collisionBitMask = 0

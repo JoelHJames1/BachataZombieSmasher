@@ -1,35 +1,26 @@
 import SpriteKit
 
+/// Endless survival spawner. Difficulty ramps over time — spawn interval
+/// shrinks from 4.0s at the start down to a floor of 0.9s after ~3 minutes.
 final class SpawnDirector {
 
     let level: Int
-    let zombieGoal: Int
     private(set) var spawned = 0
     private var nextSpawnAt: TimeInterval = 0
-    private let interval: TimeInterval
+    private var startTime: TimeInterval = 0
 
     init(level: Int) {
         self.level = level
-        // Goals scale with level
-        switch level {
-        case 1: zombieGoal = 8;  interval = 5.0
-        case 2: zombieGoal = 12; interval = 4.5
-        case 3: zombieGoal = 16; interval = 4.0
-        case 4: zombieGoal = 20; interval = 3.5
-        case 5: zombieGoal = 28; interval = 3.0
-        default: zombieGoal = 10; interval = 4.5
-        }
     }
 
-    var hasMoreToSpawn: Bool { spawned < zombieGoal }
-
     func tick(now: TimeInterval) -> Bool {
-        guard hasMoreToSpawn else { return false }
-        if now >= nextSpawnAt {
-            nextSpawnAt = now + interval + Double.random(in: -0.3...0.3)
-            spawned += 1
-            return true
-        }
-        return false
+        if startTime == 0 { startTime = now }
+        if now < nextSpawnAt { return false }
+        let elapsed = now - startTime
+        // 4.0 → 0.9 over 180 seconds, then floor.
+        let interval = max(0.9, 4.0 - elapsed / 60.0)
+        nextSpawnAt = now + interval + Double.random(in: -0.2...0.2)
+        spawned += 1
+        return true
     }
 }
