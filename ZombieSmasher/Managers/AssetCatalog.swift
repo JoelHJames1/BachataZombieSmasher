@@ -8,6 +8,7 @@ enum AssetCatalog {
     static let playerJump          = "Player1JumpingAnimationSpriteSheet"
     static let playerIdleDance     = "Player1IdleBachataDance"
     static let playerHurt          = "Player1TakingDamageSpriteSheet"
+    static let playerFireHurt      = "Player1FireDamageSpriteSheet"
     static let playerDeath         = "Player1DeathAnimation"
     static let playerWalkHandgun   = "Player1WalkingWithHandGunEquiped"
     static let playerWalkRifle     = "WalkingWithRifleSpriteAnimation"
@@ -31,6 +32,14 @@ enum AssetCatalog {
     static let zombieDeathFireArrow = "ZombieDeathByFireArrowAnimation"
     static let zombieDeathArrow     = "ZombieDeathByNormalArrowSpriteSheet"
     static let zombieHitFireArrow   = "ZombieTakingDamageByFireArrow"
+
+    // MARK: - Gargoyle (flying enemy)
+
+    static let gargoyleFly          = "FlyingGargoleFlyingAnimation"
+    static let gargoyleFireAttack   = "FlyingGargoleFireAttackSpriteSheetAnimation"
+    static let gargoyleDeath        = "DeadGargoleCrashingDownAnimation"
+    static let gargoyleGrenadeDeath = "GargoleFlyingHitByGranadeAnimation"
+    static let gargoyleFireball     = "GargoleFireBallAnimation"
 
     // MARK: - Projectiles + explosion
 
@@ -81,6 +90,27 @@ enum AssetCatalog {
         SpriteSheetSlicer.slice(image: playerHurt, cols: 4, rows: 2, range: 0..<8)
     }
 
+    static func playerFireHurtFrames() -> [SKTexture] {
+        SpriteSheetSlicer.slice(image: playerFireHurt, cols: 4, rows: 3, range: 0..<12)
+    }
+
+    // Gargoyle
+    static func gargoyleFlyFrames() -> [SKTexture] {
+        SpriteSheetSlicer.slice(image: gargoyleFly, cols: 4, rows: 3, range: 0..<12)
+    }
+    static func gargoyleFireAttackFrames() -> [SKTexture] {
+        SpriteSheetSlicer.slice(image: gargoyleFireAttack, cols: 4, rows: 3, range: 0..<12)
+    }
+    static func gargoyleDeathFrames() -> [SKTexture] {
+        SpriteSheetSlicer.slice(image: gargoyleDeath, cols: 4, rows: 3, range: 0..<12)
+    }
+    static func gargoyleGrenadeDeathFrames() -> [SKTexture] {
+        SpriteSheetSlicer.slice(image: gargoyleGrenadeDeath, cols: 4, rows: 3, range: 0..<12)
+    }
+    static func gargoyleFireballFrames() -> [SKTexture] {
+        SpriteSheetSlicer.slice(image: gargoyleFireball, cols: 4, rows: 3, range: 0..<12)
+    }
+
     static func playerDeathFrames() -> [SKTexture] {
         SpriteSheetSlicer.slice(image: playerDeath, cols: 4, rows: 4, range: 0..<16)
     }
@@ -94,7 +124,7 @@ enum AssetCatalog {
         case .bow:
             return SpriteSheetSlicer.slice(image: playerWalkBow, cols: 4, rows: 2, range: 0..<8)
         case .bat, .punch:
-            return SpriteSheetSlicer.slice(image: playerRunning, cols: 4, rows: 2, range: 0..<8)
+            return SpriteSheetSlicer.slice(image: playerWalkUnarmed, cols: 6, rows: 1, range: 0..<6)
         }
     }
 
@@ -210,13 +240,16 @@ enum AssetCatalog {
             zombieWalk, zombieAttackBite, zombieHitBullet, zombieHitArrow,
             zombieDeathGrenade, zombieDeathFireArrow, zombieDeathArrow, zombieDeathBullet,
             zombieHitFireArrow,
+            gargoyleFly, gargoyleFireAttack, gargoyleDeath, gargoyleGrenadeDeath,
+            gargoyleFireball, playerFireHurt,
             bulletHandgunAnim, bulletRifleAnim, arrowFireAnim, arrowNormalAnim, explosionSheet, grenadeImage,
             pickupHandgun, pickupRifle, pickupBow, pickupBat,
             pickupRifleAmmo, pickupArrowBag, pickupFireArrowBag,
             menuBackground, menuLogo, "MainLogoBachataAnimatonSpriteSheet1", startButton,
             inventoryButton, inventoryWeapons, iconHandgun,
             "road",
-            "Level1", "Level2", "Level3", "Level4", "Level5"
+            "Level1", "Level2", "Level3", "Level4", "Level5",
+            "Level6", "Level7", "Level8"
         ]
         DispatchQueue.global(qos: .userInitiated).async {
             for n in names {

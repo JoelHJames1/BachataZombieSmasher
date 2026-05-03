@@ -17,9 +17,20 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     private var world: SKNode!
     private var parallaxLayers: [ParallaxLayer] = []
+    private var platforms: [Platform] = []
+    private var nextPlatformX: CGFloat = 0
+    private var bgCycleIndex: Int = 0
+
+    /// Levels that cycle as the player progresses through the infinite world.
+    private let bgCycle = [6, 7, 8]
+    /// 3D parallax layers — far (slow) is behind, near (fast) is in front.
+    private var farLayer: ParallaxLayer?
+    private var nearLayer: ParallaxLayer?
 
     private var player: Player!
     private var zombies: [Zombie] = []
+    private var gargoyles: [Gargoyle] = []
+    private var lastGargoyleSegment: Int = -1
     private var spawner: SpawnDirector!
 
     private var joystick: Joystick!
@@ -59,48 +70,88 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
         groundY = -size.height * 0.38
 
-        let bgName = AssetCatalog.levelBackground(level)
-        // Anchor bg's top at screen top; scale large enough that its dark
-        // bottom region lands BELOW the road (off-screen), eliminating the
-        // black gap between bg and road.
-        let bgScaleFactor: CGFloat = 1.6
-        addParallaxLayer(imageName: bgName,
-                         parallax: 0.3,
+        // FAR layer — scrolls slowly, sits behind everything, slightly dimmed
+        // for atmospheric depth.
+        let firstBg = AssetCatalog.levelBackground(bgCycle[0])
+        addParallaxLayer(imageName: firstBg,
+                         parallax: 0.10,
+                         zPosition: -20,
+                         anchor: CGPoint(x: 0.5, y: 1.0),
+                         positionY: size.height / 2,
+                         scaleToHeight: true,
+                         extraScale: 1.7,
+                         tintAlpha: 0.55)
+        farLayer = parallaxLayers.last
+
+        // NEAR layer — main bg, scrolls faster, sits in front of FAR but
+        // behind the road platforms.
+        addParallaxLayer(imageName: firstBg,
+                         parallax: 0.35,
                          zPosition: -10,
                          anchor: CGPoint(x: 0.5, y: 1.0),
                          positionY: size.height / 2,
                          scaleToHeight: true,
-                         extraScale: bgScaleFactor)
+                         extraScale: 1.6)
+        nearLayer = parallaxLayers.last
 
-        if let groundName = AssetCatalog.levelGround(level) {
-            // road.png — user cropped out the black border, so the road
-            // surface is at image_y=0 and the image is 3382x1098.
-            let topOfGroundInImageY: CGFloat = 0
-            let imageH: CGFloat = 1098
-            addParallaxLayer(imageName: groundName,
-                             parallax: 1.0,
-                             zPosition: -5,
-                             anchor: CGPoint(x: 0.5, y: 1.0 - topOfGroundInImageY / imageH),
-                             positionY: groundY,
-                             scaleToHeight: false)
+        // Seed the first 3 ground platforms with no gaps so the player has a
+        // safe starting strip; platforms after that are spawned procedurally
+        // with random gaps as the player advances.
+        nextPlatformX = -size.width
+        for _ in 0..<3 {
+            spawnPlatform(allowGap: false)
         }
+    }
 
-        let ground = SKNode()
-        ground.position = CGPoint(x: 0, y: groundY)
-        let body = SKPhysicsBody(edgeFrom: CGPoint(x: -size.width * 5, y: 0),
-                                 to:        CGPoint(x:  size.width * 5, y: 0))
-        body.categoryBitMask = PhysicsCategory.ground
-        body.collisionBitMask = PhysicsCategory.player | PhysicsCategory.zombie | PhysicsCategory.grenade
-        body.contactTestBitMask = 0
-        body.isDynamic = false
-        ground.physicsBody = body
-        addChild(ground)
+    private func spawnPlatform(allowGap: Bool) {
+        let groundName = AssetCatalog.levelGround(level) ?? "road"
+        let minWidth = size.width * 0.55
+        let maxWidth = size.width * 1.1
+        let width = CGFloat.random(in: minWidth...maxWidth)
+        let gap: CGFloat = allowGap ? CGFloat.random(in: 90...180) : 0
+        let startX = nextPlatformX + gap
+        let p = Platform(startX: startX, width: width, topY: groundY,
+                         imageName: groundName)
+        world.addChild(p)
+        platforms.append(p)
+        nextPlatformX = startX + width
+    }
+
+    private func updatePlatforms() {
+        // Spawn ahead of the player.
+        let aheadEdge = player.position.x + size.width * 1.5
+        while nextPlatformX < aheadEdge {
+            spawnPlatform(allowGap: true)
+        }
+        // Despawn well behind the player.
+        let behindEdge = player.position.x - size.width * 1.5
+        while let first = platforms.first, first.endX < behindEdge {
+            first.removeFromParent()
+            platforms.removeFirst()
+        }
+        // Cycle Level6/7/8 backgrounds every ~3 screen-widths of progress.
+        let bgWidthThreshold = size.width * 3.0
+        let newBgIndex = max(0, Int(player.position.x / bgWidthThreshold)) % bgCycle.count
+        if newBgIndex != bgCycleIndex {
+            bgCycleIndex = newBgIndex
+            let levelNum = bgCycle[newBgIndex]
+            let tex = SKTexture(imageNamed: AssetCatalog.levelBackground(levelNum))
+            // Both far + near layers share the same level art for this segment;
+            // they differ in scroll speed and tint, which gives the depth feel.
+            if let near = nearLayer { for c in near.copies { c.texture = tex } }
+            if let far  = farLayer  { for c in far.copies  { c.texture = tex } }
+        }
+    }
+
+    /// Find the platform under a given x for placing a zombie spawn.
+    private func platformContaining(x: CGFloat) -> Platform? {
+        platforms.first { $0.contains(x: x) }
     }
 
     private func buildPlayer() {
         player = Player()
-        player.position = CGPoint(x: -size.width * 0.25, y: groundY + 65)
-        addChild(player)
+        player.position = CGPoint(x: 0, y: groundY + 80)
+        world.addChild(player)
 
         player.onHealthChanged = { [weak self] h, m in self?.hud.setHealth(h, max: m) }
         player.onWeaponChanged = { [weak self] w, _ in
@@ -176,13 +227,35 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         player.update(dt: dt, currentTime: currentTime)
 
         for z in zombies { z.update(dt: dt, currentTime: currentTime) }
+        for g in gargoyles where g.state != .dead { g.update(dt: dt, currentTime: currentTime) }
 
         if fireHeld { player.tryFire(at: currentTime, scene: self) }
 
         if spawner.tick(now: currentTime) { spawnZombie() }
+        // One gargoyle per world (bg cycle) segment — tied to bgCycleIndex.
+        if bgCycleIndex != lastGargoyleSegment,
+           gargoyles.filter({ $0.state != .dead }).isEmpty {
+            lastGargoyleSegment = bgCycleIndex
+            spawnGargoyle()
+        }
 
+        updatePlatforms()
         updateParallax()
+        followPlayerCamera()
+
+        // Fell into a gap?
+        if player.state != .dead, player.position.y < groundY - size.height {
+            player.die(byGrenade: false)
+            failLevel()
+        }
+
         hud.setSurvival(time: survivalElapsed, kills: killed)
+    }
+
+    private func followPlayerCamera() {
+        // Center the world on the player horizontally (player stays around x=0
+        // visually). Vertical stays put.
+        world.position.x = -player.position.x + size.width * 0.05
     }
 
     private func addParallaxLayer(imageName: String,
@@ -191,7 +264,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
                                    anchor: CGPoint,
                                    positionY: CGFloat,
                                    scaleToHeight: Bool,
-                                   extraScale: CGFloat = 1.0) {
+                                   extraScale: CGFloat = 1.0,
+                                   tintAlpha: CGFloat = 1.0) {
         let a = SKSpriteNode(imageNamed: imageName)
         let b = SKSpriteNode(imageNamed: imageName)
         let baseScale = scaleToHeight ? size.height / a.size.height : size.width / a.size.width
@@ -202,11 +276,14 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         b.anchorPoint = anchor
         a.zPosition = zPosition
         b.zPosition = zPosition
+        a.alpha = tintAlpha
+        b.alpha = tintAlpha
         let w = a.size.width
         a.position = CGPoint(x: 0, y: positionY)
         b.position = CGPoint(x: w, y: positionY)
-        world.addChild(a)
-        world.addChild(b)
+        // Scene-level (NOT in world) so camera scroll doesn't double-shift.
+        addChild(a)
+        addChild(b)
         parallaxLayers.append(ParallaxLayer(copies: [a, b], parallax: parallax, width: w))
     }
 
@@ -223,8 +300,20 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     private func spawnZombie() {
         let z = Zombie()
-        let x = size.width * 0.55
-        z.position = CGPoint(x: x, y: groundY + 65)
+        // 50/50 spawn from left or right of the player on whichever platform
+        // exists out there.
+        let side: CGFloat = Bool.random() ? 1 : -1
+        let spawnX = player.position.x + side * size.width * 0.7
+        let plat = platformContaining(x: spawnX)
+            ?? (side > 0 ? platforms.last : platforms.first)
+        let actualX: CGFloat
+        if let plat {
+            actualX = min(max(spawnX, plat.startX + 40), plat.endX - 40)
+            z.platform = plat
+        } else {
+            actualX = spawnX
+        }
+        z.position = CGPoint(x: actualX, y: groundY + 65)
         z.target = player
         z.onDied = { [weak self] z in
             guard let self else { return }
@@ -239,8 +328,31 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             self.player.takeDamage(8)
             if self.player.state == .dead { self.failLevel() }
         }
-        addChild(z)
+        world.addChild(z)
         zombies.append(z)
+    }
+
+    private func spawnGargoyle() {
+        let side: CGFloat = Bool.random() ? 1 : -1
+        let spawnX = player.position.x + side * size.width * 0.6
+        let hoverY = groundY + 220 + CGFloat.random(in: -30...40)
+        let g = Gargoyle(hoverY: hoverY)
+        g.position = CGPoint(x: spawnX, y: hoverY + 60)
+        g.target = player
+        g.onDied = { [weak self] g in
+            guard let self else { return }
+            self.gargoyles.removeAll { $0 === g }
+            self.killed += 1
+            self.hud.setSurvival(time: self.survivalElapsed, kills: self.killed)
+        }
+        g.onShoot = { [weak self] g, dir in
+            guard let self else { return }
+            let fb = GargoyleFireball(direction: dir)
+            fb.position = CGPoint(x: g.position.x + 60 * dir, y: g.position.y - 6)
+            self.world.addChild(fb)
+        }
+        world.addChild(g)
+        gargoyles.append(g)
     }
 
     private func maybeDropPickup(at pos: CGPoint) {
@@ -249,7 +361,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         if roll < 0.05 {
             let g = GrenadePickup(amount: 1)
             g.position = CGPoint(x: pos.x, y: groundY + 30)
-            addChild(g)
+            world.addChild(g)
             return
         }
         if roll < 0.12 {
@@ -257,7 +369,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             let w = weapons.randomElement() ?? .rifle
             let p = Pickup(weapon: w, ammoBoost: w.hasInfiniteAmmo ? 0 : 10)
             p.position = CGPoint(x: pos.x, y: groundY + 30)
-            addChild(p)
+            world.addChild(p)
             return
         }
         if roll < 0.25 {
@@ -265,7 +377,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             let kind = kinds.randomElement() ?? .rifle
             let a = AmmoPickup(kind: kind, amount: 10)
             a.position = CGPoint(x: pos.x, y: groundY + 30)
-            addChild(a)
+            world.addChild(a)
         }
     }
 
@@ -276,7 +388,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         if weapon.isRanged {
             let proj = Projectile(weapon: weapon, direction: dir, isFire: isFire)
             proj.position = CGPoint(x: p.position.x + 60 * dir, y: p.position.y + 8)
-            addChild(proj)
+            world.addChild(proj)
         } else {
             for z in zombies where z.state != .dead {
                 let dx = z.position.x - p.position.x
@@ -299,13 +411,13 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             self?.detonate(at: pos)
         }
         g.position = CGPoint(x: player.position.x + 30 * dir, y: player.position.y + 20)
-        addChild(g)
+        world.addChild(g)
     }
 
     private func detonate(at pos: CGPoint) {
         let ex = Explosion()
         ex.position = pos
-        addChild(ex)
+        world.addChild(ex)
         for z in zombies where z.state != .dead {
             let d = hypot(z.position.x - pos.x, z.position.y - pos.y)
             if d < 140 { z.die(kind: .grenade) }
@@ -541,7 +653,10 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             let arrow = a.categoryBitMask == PhysicsCategory.arrow ? a.node as? Projectile : b.node as? Projectile
             let zombie = a.categoryBitMask == PhysicsCategory.zombie ? a.node as? Zombie : b.node as? Zombie
             if let arrow, let zombie {
-                let damage = arrow.isFire ? 30 : 12
+                // Fire arrow burns over multiple hits — don't one-shot. Plays
+                // ZombieTakingDamageByFireArrow on non-lethal hits and
+                // ZombieDeathByFireArrowAnimation only on the killing blow.
+                let damage = arrow.isFire ? 12 : 12
                 zombie.takeDamage(damage, kind: arrow.isFire ? .fireArrow : .arrow)
                 arrow.removeFromParent()
             }
@@ -551,10 +666,56 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
                 detonate(at: grenade.position)
                 grenade.removeFromParent()
             }
+        } else if mask & (PhysicsCategory.grenade | PhysicsCategory.gargoyle) == (PhysicsCategory.grenade | PhysicsCategory.gargoyle) {
+            // Direct grenade hit on gargoyle — detonate at gargoyle position so
+            // the explosion's blast radius also catches the gargoyle and any
+            // nearby zombies via the explosion+gargoyle / explosion+zombie paths.
+            let grenade = a.categoryBitMask == PhysicsCategory.grenade ? a.node as? Grenade : b.node as? Grenade
+            let g = a.categoryBitMask == PhysicsCategory.gargoyle ? a.node as? Gargoyle : b.node as? Gargoyle
+            if let grenade {
+                detonate(at: grenade.position)
+                grenade.removeFromParent()
+            }
+            // Make sure the gargoyle dies on grenade contact even if the
+            // explosion sphere just missed (e.g., direct collision corner case).
+            g?.die(kind: .grenade)
+        } else if mask & (PhysicsCategory.bullet | PhysicsCategory.gargoyle) == (PhysicsCategory.bullet | PhysicsCategory.gargoyle) {
+            let bullet = a.categoryBitMask == PhysicsCategory.bullet ? a.node as? Projectile : b.node as? Projectile
+            let g = a.categoryBitMask == PhysicsCategory.gargoyle ? a.node as? Gargoyle : b.node as? Gargoyle
+            if let bullet, let g {
+                g.takeDamage(bullet.weapon.damage, kind: .bullet)
+                bullet.removeFromParent()
+            }
+        } else if mask & (PhysicsCategory.arrow | PhysicsCategory.gargoyle) == (PhysicsCategory.arrow | PhysicsCategory.gargoyle) {
+            let arrow = a.categoryBitMask == PhysicsCategory.arrow ? a.node as? Projectile : b.node as? Projectile
+            let g = a.categoryBitMask == PhysicsCategory.gargoyle ? a.node as? Gargoyle : b.node as? Gargoyle
+            if let arrow, let g {
+                let damage = arrow.isFire ? 12 : 12
+                g.takeDamage(damage, kind: arrow.isFire ? .fireArrow : .arrow)
+                arrow.removeFromParent()
+            }
+        } else if mask & (PhysicsCategory.explosion | PhysicsCategory.gargoyle) == (PhysicsCategory.explosion | PhysicsCategory.gargoyle) {
+            let g = a.categoryBitMask == PhysicsCategory.gargoyle ? a.node as? Gargoyle : b.node as? Gargoyle
+            g?.die(kind: .grenade)
+        } else if mask & (PhysicsCategory.fireball | PhysicsCategory.player) == (PhysicsCategory.fireball | PhysicsCategory.player) {
+            let fb = a.categoryBitMask == PhysicsCategory.fireball ? a.node : b.node
+            player.takeFireDamage(12)
+            fb?.removeFromParent()
+            if player.state == .dead { failLevel() }
         } else if mask & (PhysicsCategory.pickup | PhysicsCategory.player) == (PhysicsCategory.pickup | PhysicsCategory.player) {
             let pickup = a.categoryBitMask == PhysicsCategory.pickup ? a.node : b.node
             if let p = pickup as? Pickup {
-                player.equip(p.weapon, addAmmo: p.ammoBoost)
+                // Don't auto-switch weapon — just add it / its ammo to the
+                // inventory so the player can pick it from the menu when ready.
+                if !p.weapon.hasInfiniteAmmo, p.ammoBoost > 0 {
+                    player.ammo[p.weapon, default: 0] += p.ammoBoost
+                    if player.weapon == p.weapon {
+                        // Keep HUD in sync if it's the active weapon.
+                        player.equip(p.weapon)
+                    } else {
+                        refreshAmmoHud()
+                    }
+                }
                 p.removeFromParent()
             } else if let g = pickup as? GrenadePickup {
                 player.grenades += g.amount

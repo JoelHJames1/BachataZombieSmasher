@@ -9,6 +9,8 @@ final class Zombie: SKSpriteNode {
     var health: Int = 30
     var moveSpeed: CGFloat = 45
     weak var target: SKNode?
+    /// Platform the zombie was placed on. AI clamps movement to its edges.
+    weak var platform: Platform?
 
     private let walkFrames: [SKTexture]
     private let biteFrames: [SKTexture]
@@ -61,7 +63,22 @@ final class Zombie: SKSpriteNode {
     func update(dt: TimeInterval, currentTime: TimeInterval) {
         guard state != .dead, state != .hit, let target else { return }
         let dx = target.position.x - position.x
-        let dir: CGFloat = dx >= 0 ? 1 : -1
+        var dir: CGFloat = dx >= 0 ? 1 : -1
+
+        // Edge guard: stop at platform boundary instead of walking off.
+        if let p = platform {
+            let edgePad: CGFloat = 30
+            let nextX = position.x + dir * moveSpeed * 0.1
+            let wouldFall = (dir > 0 && nextX > p.endX - edgePad) ||
+                            (dir < 0 && nextX < p.startX + edgePad)
+            if wouldFall {
+                if state != .walk { startWalk() }
+                physicsBody?.velocity.dx = 0
+                xScale = dir
+                return
+            }
+        }
+
         xScale = dir
         if abs(dx) < meleeRange {
             if state != .attack { startAttack() }
@@ -122,7 +139,7 @@ final class Zombie: SKSpriteNode {
         case .fireArrow: frames = AssetCatalog.zombieFireArrowDeathFrames()
         case .arrow:     frames = AssetCatalog.zombieArrowDeathFrames()
         case .bullet:    frames = AssetCatalog.zombieBulletDeathFrames()
-        case .melee:     frames = AssetCatalog.zombieHitBulletFrames()
+        case .melee:     frames = AssetCatalog.zombieBulletDeathFrames()
         }
         let anim = SKAction.animate(with: frames, timePerFrame: 1.0/8.0)
         // All deaths play the full sequence, freeze on the last frame as a

@@ -5,11 +5,11 @@ final class Player: SKSpriteNode {
     enum State { case idle, still, run, jump, attack, hit, dead }
 
     private(set) var state: State = .idle
-    private(set) var weapon: WeaponKind = .handgun
+    private(set) var weapon: WeaponKind = .bow
     var maxHealth: Int = 100
     var health: Int = 100 { didSet { onHealthChanged?(health, maxHealth) } }
     var ammo: [WeaponKind: Int] = [.handgun: 40, .rifle: 0, .bow: 0, .bat: 0]
-    var fireArrowAmmo: Int = 0
+    var fireArrowAmmo: Int = 30
     var grenades: Int = 10
 
     var onHealthChanged: ((Int, Int) -> Void)?
@@ -20,6 +20,7 @@ final class Player: SKSpriteNode {
     private let jumpFrames: [SKTexture]
     private let idleFrames: [SKTexture]
     private let hurtFrames: [SKTexture]
+    private let fireHurtFrames: [SKTexture]
     private let deathFrames: [SKTexture]
     private var lastFireAt: TimeInterval = 0
     private var movingDir: CGFloat = 0
@@ -30,11 +31,12 @@ final class Player: SKSpriteNode {
     var isUsingFireArrow: Bool { weapon == .bow && fireArrowAmmo > 0 }
 
     init() {
-        let frames = AssetCatalog.playerWalkFrames(weapon: .handgun)
+        let frames = AssetCatalog.playerWalkFrames(weapon: .bow)
         runFrames = frames
         jumpFrames = AssetCatalog.playerJumpFrames()
         idleFrames = AssetCatalog.playerIdleDanceFrames()
         hurtFrames = AssetCatalog.playerHurtFrames()
+        fireHurtFrames = AssetCatalog.playerFireHurtFrames()
         deathFrames = AssetCatalog.playerDeathFrames()
         let tex = frames.first ?? SKTexture()
         super.init(texture: tex, color: .clear, size: CGSize(width: 110, height: 130))
@@ -43,7 +45,7 @@ final class Player: SKSpriteNode {
         zPosition = 50
         let body = SKPhysicsBody(rectangleOf: CGSize(width: 70, height: 120))
         body.categoryBitMask = PhysicsCategory.player
-        body.contactTestBitMask = PhysicsCategory.zombie | PhysicsCategory.pickup | PhysicsCategory.explosion
+        body.contactTestBitMask = PhysicsCategory.zombie | PhysicsCategory.pickup | PhysicsCategory.explosion | PhysicsCategory.fireball
         body.collisionBitMask = PhysicsCategory.ground
         body.allowsRotation = false
         body.affectedByGravity = true
@@ -135,17 +137,18 @@ final class Player: SKSpriteNode {
         run(.repeatForever(anim), withKey: "anim")
     }
 
-    private func enterHit() {
+    private func enterHit(useFireFrames: Bool = false) {
         state = .hit
         physicsBody?.velocity.dx = 0
         removeAction(forKey: "anim")
-        guard !hurtFrames.isEmpty else {
+        let frames = useFireFrames ? fireHurtFrames : hurtFrames
+        guard !frames.isEmpty else {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
                 self?.exitHit()
             }
             return
         }
-        let anim = SKAction.animate(with: hurtFrames, timePerFrame: 1.0/14.0)
+        let anim = SKAction.animate(with: frames, timePerFrame: 1.0/14.0)
         run(.sequence([anim, .run { [weak self] in self?.exitHit() }]), withKey: "anim")
     }
 
@@ -231,7 +234,20 @@ final class Player: SKSpriteNode {
             die(byGrenade: false)
             return
         }
-        enterHit()
+        enterHit(useFireFrames: false)
+    }
+
+    /// Player hit by fire (e.g. gargoyle fireball). Plays the dedicated
+    /// fire-damage animation instead of the regular hurt frames.
+    func takeFireDamage(_ amount: Int) {
+        guard state != .dead, state != .hit else { return }
+        if state == .idle { AudioManager.stopMusic() }
+        health = max(0, health - amount)
+        if health == 0 {
+            die(byGrenade: false)
+            return
+        }
+        enterHit(useFireFrames: true)
     }
 
     func die(byGrenade: Bool) {

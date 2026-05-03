@@ -28,6 +28,7 @@ SHEETS = [
     # Player movement / idle / actions
     ("Player1IdleBachataDance.png", 4, 3, "feet"),
     ("Player1TakingDamageSpriteSheet.png", 4, 2, "feet"),
+    ("Player1FireDamageSpriteSheet.png", 4, 3, "feet"),
     ("Player1ShooingBowFireArrowAnimation.png", 4, 2, "feet"),
     ("Player1SwingingBatSpriteSheet.png", 4, 2, "feet"),
     ("Player1DeathAnimation.png", 4, 4, "feet"),
@@ -63,6 +64,13 @@ SHEETS = [
     ("ZombieDeathByGrenadeSpriteSheet.png", 4, 3, "feet"),
     ("ZombieTakingBulletDamageSpriteSheet.png", 4, 3, "feet"),
     ("ZombieTakingDamageByFireArrow.png", 4, 3, "feet"),
+
+    # Gargoyle (flying enemy) — center-aligned since it flies (no fixed feet).
+    ("FlyingGargoleFlyingAnimation.png", 4, 3, "center"),
+    ("FlyingGargoleFireAttackSpriteSheetAnimation.png", 4, 3, "center"),
+    ("DeadGargoleCrashingDownAnimation.png", 4, 3, "center"),
+    ("GargoleFlyingHitByGranadeAnimation.png", 4, 3, "center"),
+    ("GargoleFireBallAnimation.png", 4, 3, "center"),
 ]
 
 

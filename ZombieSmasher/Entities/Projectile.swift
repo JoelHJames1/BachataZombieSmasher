@@ -1,5 +1,29 @@
 import SpriteKit
 
+/// Gargoyle fireball — cuts horizontally toward the player. Damages on contact.
+final class GargoyleFireball: SKSpriteNode {
+    init(direction: CGFloat) {
+        let frames = AssetCatalog.gargoyleFireballFrames()
+        let tex = frames.first ?? SKTexture()
+        super.init(texture: tex, color: .clear, size: CGSize(width: 80, height: 80))
+        zPosition = 60
+        xScale = direction >= 0 ? 1 : -1
+        if !frames.isEmpty {
+            run(.repeatForever(.animate(with: frames, timePerFrame: 1.0/14.0)))
+        }
+        let body = SKPhysicsBody(rectangleOf: size)
+        body.categoryBitMask = PhysicsCategory.fireball
+        body.contactTestBitMask = PhysicsCategory.player
+        body.collisionBitMask = 0
+        body.affectedByGravity = false
+        body.usesPreciseCollisionDetection = true
+        body.velocity = CGVector(dx: 600 * direction, dy: 0)
+        physicsBody = body
+        run(.sequence([.wait(forDuration: 2.0), .removeFromParent()]))
+    }
+    required init?(coder: NSCoder) { fatalError() }
+}
+
 final class Projectile: SKSpriteNode {
 
     let weapon: WeaponKind
@@ -61,7 +85,7 @@ final class Grenade: SKSpriteNode {
         run(.repeatForever(.rotate(byAngle: .pi * 2, duration: 0.6)))
         let body = SKPhysicsBody(circleOfRadius: 9)
         body.categoryBitMask = PhysicsCategory.grenade
-        body.contactTestBitMask = PhysicsCategory.zombie
+        body.contactTestBitMask = PhysicsCategory.zombie | PhysicsCategory.gargoyle
         body.collisionBitMask = PhysicsCategory.ground
         body.affectedByGravity = true
         body.restitution = 0.2

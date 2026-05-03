@@ -10,4 +10,6 @@ enum PhysicsCategory {
     static let explosion: UInt32 = 1 << 5
     static let pickup:    UInt32 = 1 << 6
     static let ground:    UInt32 = 1 << 7
+    static let gargoyle:  UInt32 = 1 << 8
+    static let fireball:  UInt32 = 1 << 9
 }
