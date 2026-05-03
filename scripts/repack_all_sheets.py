@@ -23,40 +23,46 @@ REPACKED = PROJECT / "_resource_repacked_originals"
 # exactly cols×rows uniform cells. If detected grid doesn't match expected,
 # we still repack the first cols×rows detected cells (extras dropped, missing
 # left transparent).
+# (filename, cols, rows, align) — align: "feet" (default) or "center"
 SHEETS = [
     # Player movement / idle / actions
-    ("Player1IdleBachataDance.png", 4, 3),
-    ("Player1TakingDamageSpriteSheet.png", 4, 2),
-    ("Player1ShooingBowFireArrowAnimation.png", 4, 2),
-    ("Player1SwingingBatSpriteSheet.png", 4, 2),
-    ("Player1DeathAnimation.png", 4, 4),
-    ("ShootingHandGunSpriteSheet.png", 4, 2),
-    ("ShootingRifleAnimation.png", 4, 2),
-    ("ShootingBowAnimationSpriteSheet.png", 4, 2),
+    ("Player1IdleBachataDance.png", 4, 3, "feet"),
+    ("Player1TakingDamageSpriteSheet.png", 4, 2, "feet"),
+    ("Player1ShooingBowFireArrowAnimation.png", 4, 2, "feet"),
+    ("Player1SwingingBatSpriteSheet.png", 4, 2, "feet"),
+    ("Player1DeathAnimation.png", 4, 4, "feet"),
+    ("ShootingHandGunSpriteSheet.png", 4, 2, "feet"),
+    ("ShootingRifleAnimation.png", 4, 2, "feet"),
+    ("ShootingBowAnimationSpriteSheet.png", 4, 2, "feet"),
 
     # Existing walks (kept the user's original layout)
-    ("Player1WalkingWithHandGunEquiped.png", 4, 3),
-    ("WalkingWithRifleSpriteAnimation.png", 4, 2),
-    ("Player1WalkingwithBow.png", 4, 2),
-    ("Player1WalkingAnimationUnequiped.png", 6, 1),
-    ("Player1RunningSpriteSheetAnimation.png", 4, 2),
-    ("Player1JumpingAnimationSpriteSheet.png", 4, 2),
+    ("Player1WalkingWithHandGunEquiped.png", 4, 3, "feet"),
+    ("WalkingWithRifleSpriteAnimation.png", 4, 2, "feet"),
+    ("Player1WalkingwithBow.png", 4, 2, "feet"),
+    ("Player1WalkingAnimationUnequiped.png", 6, 1, "feet"),
+    ("Player1RunningSpriteSheetAnimation.png", 4, 2, "feet"),
+    ("Player1JumpingAnimationSpriteSheet.png", 4, 2, "feet"),
 
-    # Projectiles — repack just the first 4 frames as a clean loop
-    ("HandGunBulletTravelingAnimationSpriteSheet.png", 4, 1),
-    ("TravelingRifleBulletSpriteSheet.png", 4, 1),
-    ("FlyingArrowBurningFireSpriteSheet.png", 4, 1),
-    ("RegularArrowProjectileSpriteSheet.png", 4, 1),
+    # Projectiles — center-aligned (no fixed bottom anchor)
+    ("HandGunBulletTravelingAnimationSpriteSheet.png", 4, 1, "center"),
+    ("TravelingRifleBulletSpriteSheet.png", 4, 1, "center"),
+    ("FlyingArrowBurningFireSpriteSheet.png", 4, 1, "center"),
+    ("RegularArrowProjectileSpriteSheet.png", 4, 1, "center"),
+
+    # Explosion — center-aligned (expands radially). Strict min_gap=40 stops
+    # the semi-transparent fading edges from getting picked up as phantom
+    # cell dividers.
+    ("GrenadeExplosionSpriteSheet.png", 4, 3, "center", 40),
 
     # Zombie
-    ("ZombieWalkingAnimations.png", 4, 3),
-    ("ZombieBitingAttackAnimation.png", 4, 3),
-    ("ZombieDyingByBeingShotDeathSpriteSheet.png", 4, 3),
-    ("ZombieDeathByFireArrowAnimation.png", 4, 4),
-    ("ZombieDeathByNormalArrowSpriteSheet.png", 4, 3),
-    ("ZombieDeathByGrenadeSpriteSheet.png", 4, 3),
-    ("ZombieTakingBulletDamageSpriteSheet.png", 4, 3),
-    ("ZombieTakingDamageByFireArrow.png", 4, 3),
+    ("ZombieWalkingAnimations.png", 4, 3, "feet"),
+    ("ZombieBitingAttackAnimation.png", 4, 3, "feet"),
+    ("ZombieDyingByBeingShotDeathSpriteSheet.png", 4, 3, "feet"),
+    ("ZombieDeathByFireArrowAnimation.png", 4, 4, "feet"),
+    ("ZombieDeathByNormalArrowSpriteSheet.png", 4, 3, "feet"),
+    ("ZombieDeathByGrenadeSpriteSheet.png", 4, 3, "feet"),
+    ("ZombieTakingBulletDamageSpriteSheet.png", 4, 3, "feet"),
+    ("ZombieTakingDamageByFireArrow.png", 4, 3, "feet"),
 ]
 
 
@@ -88,13 +94,13 @@ def strip_white(img: Image.Image) -> Image.Image:
     return img
 
 
-def detect_dividers(img: Image.Image):
+def detect_dividers(img: Image.Image, min_gap: int = 3):
     W, H = img.size
     px = img.load()
     trans_row = [sum(1 for x in range(W) if px[x, y][3] == 0) for y in range(H)]
     trans_col = [sum(1 for y in range(H) if px[x, y][3] == 0) for x in range(W)]
 
-    def runs(arr, threshold_ratio=0.95, min_run=3):
+    def runs(arr, threshold_ratio=0.95, min_run=min_gap):
         cutoff = max(arr) * threshold_ratio
         out = []; cur = []
         for i, v in enumerate(arr):
@@ -124,10 +130,10 @@ def detect_dividers(img: Image.Image):
 
 
 def repack(src_path: Path, expected_cols: int, expected_rows: int,
-           pad: int = 30) -> Image.Image:
+           align: str = "feet", pad: int = 30, min_gap: int = 3) -> Image.Image:
     src = Image.open(src_path).convert("RGBA")
     stripped = strip_white(src)
-    row_bounds, col_bounds = detect_dividers(stripped)
+    row_bounds, col_bounds = detect_dividers(stripped, min_gap=min_gap)
     detected_rows = len(row_bounds) - 1
     detected_cols = len(col_bounds) - 1
 
@@ -159,8 +165,9 @@ def repack(src_path: Path, expected_cols: int, expected_rows: int,
     cw = max_w + pad * 2
     ch = max_h + pad * 2
 
-    # Re-pack with each frame BOTTOM-CENTERED (feet alignment) so feet are
-    # consistent across frames in the new uniform grid.
+    # Re-pack each frame in its uniform cell. "feet" mode bottom-aligns
+    # (used for characters); "center" mode centers vertically (used for
+    # projectiles + radial explosion).
     out = Image.new("RGBA", (cw * expected_cols, ch * expected_rows), (0, 0, 0, 0))
     for i in range(expected_cols * expected_rows):
         if i >= len(frames):
@@ -168,15 +175,26 @@ def repack(src_path: Path, expected_cols: int, expected_rows: int,
         f = frames[i]
         r, c = divmod(i, expected_cols)
         x = c * cw + (cw - f.size[0]) // 2
-        # bottom-align: paste with bottom of f at (r+1)*ch - pad
-        y = (r + 1) * ch - pad - f.size[1]
+        if align == "center":
+            y = r * ch + (ch - f.size[1]) // 2
+        else:
+            # feet: bottom of frame at (r+1)*ch - pad
+            y = (r + 1) * ch - pad - f.size[1]
         out.paste(f, (x, y), f)
     return out
 
 
 def main():
     REPACKED.mkdir(exist_ok=True)
-    for name, cols, rows in SHEETS:
+    for entry in SHEETS:
+        min_gap = 3
+        if len(entry) == 5:
+            name, cols, rows, align, min_gap = entry  # type: ignore
+        elif len(entry) == 4:
+            name, cols, rows, align = entry
+        else:
+            name, cols, rows = entry  # type: ignore
+            align = "feet"
         src_in_resources = RESOURCES / name
         original_backup = ORIGINALS / name
         if not original_backup.exists() and src_in_resources.exists():
@@ -185,8 +203,8 @@ def main():
             print(f"missing  {name}")
             continue
         # Always rebuild from the original (pre-strip pre-pack)
-        print(f"repack   {name} ({cols}x{rows})")
-        repacked = repack(original_backup, cols, rows)
+        print(f"repack   {name} ({cols}x{rows}, {align}, min_gap={min_gap})")
+        repacked = repack(original_backup, cols, rows, align=align, min_gap=min_gap)
         repacked.save(src_in_resources, "PNG")
         # Save a copy in REPACKED for inspection
         repacked.save(REPACKED / name, "PNG")

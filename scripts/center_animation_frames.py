@@ -29,6 +29,7 @@ SHEETS = [
     # Menu (locked — centroid keeps the logo on the same anchor)
     ("StartButtonAnimationMenuSpriteSheet.png", 4, 2, "centroid"),
     ("MainLogoBachataAnimatonSpriteSheet.png", 4, 3, "centroid"),
+    ("MainLogoBachataAnimatonSpriteSheet1.png", 4, 3, "centroid"),
 
     # Spinning pickups — centroid
     ("PickupHandGunSpriteSheet.png", 4, 4, "centroid"),

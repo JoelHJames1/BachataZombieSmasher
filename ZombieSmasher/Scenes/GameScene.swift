@@ -73,9 +73,10 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
                          extraScale: bgScaleFactor)
 
         if let groundName = AssetCatalog.levelGround(level) {
-            // road.png is 1916x821; visible road surface lives in the upper portion of the canvas.
-            let topOfGroundInImageY: CGFloat = 360
-            let imageH: CGFloat = 821
+            // road.png — user cropped out the black border, so the road
+            // surface is at image_y=0 and the image is 3382x1098.
+            let topOfGroundInImageY: CGFloat = 0
+            let imageH: CGFloat = 1098
             addParallaxLayer(imageName: groundName,
                              parallax: 1.0,
                              zPosition: -5,
@@ -281,7 +282,9 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
                 let dx = z.position.x - p.position.x
                 if (dir > 0 && dx > 0 && dx < 90) || (dir < 0 && dx < 0 && dx > -90) {
                     z.takeDamage(weapon.damage, kind: .melee)
-                    z.physicsBody?.applyImpulse(CGVector(dx: 80 * dir, dy: 30))
+                    // No knockback impulse — bat hits stagger the zombie in
+                    // place so they react where they're standing.
+                    z.physicsBody?.velocity = .zero
                 }
             }
         }

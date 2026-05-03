@@ -12,6 +12,7 @@ final class MainMenuScene: SKScene {
         buildLogo()
         buildStartButton()
         buildFooter()
+        AudioManager.playMusic(named: "BachateBGSound")
     }
 
     private func buildBackground() {
@@ -116,6 +117,7 @@ final class MainMenuScene: SKScene {
 
     private func goToLevelSelect() {
         // Survival mode: skip level selection, jump straight into the arena.
+        AudioManager.stopMusic()
         let v = view
         GameViewController.pendingTransition = { newSize in
             guard let v else { return }

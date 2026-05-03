@@ -54,6 +54,8 @@ enum AssetCatalog {
     // MARK: - UI
 
     static let menuBackground      = "MainMenuBackground"
+    static let menuLogoVariants    = ["MainLogoBachataAnimatonSpriteSheet",
+                                       "MainLogoBachataAnimatonSpriteSheet1"]
     static let menuLogo            = "MainLogoBachataAnimatonSpriteSheet"
     static let startButton         = "StartButtonAnimationMenuSpriteSheet"
     static let inventoryButton     = "InventoryButton"
@@ -165,7 +167,7 @@ enum AssetCatalog {
     }
 
     static func explosionFrames() -> [SKTexture] {
-        SpriteSheetSlicer.slice(image: explosionSheet, cols: 4, rows: 3, range: 0..<8)
+        SpriteSheetSlicer.slice(image: explosionSheet, cols: 4, rows: 3, range: 0..<12)
     }
 
     // MARK: - Pickup frames
@@ -194,7 +196,8 @@ enum AssetCatalog {
     }
 
     static func menuLogoFrames() -> [SKTexture] {
-        SpriteSheetSlicer.slice(image: menuLogo, cols: 4, rows: 3)
+        let sheet = menuLogoVariants.randomElement() ?? menuLogo
+        return SpriteSheetSlicer.slice(image: sheet, cols: 4, rows: 3)
     }
 
     // MARK: - Preload
@@ -210,7 +213,7 @@ enum AssetCatalog {
             bulletHandgunAnim, bulletRifleAnim, arrowFireAnim, arrowNormalAnim, explosionSheet, grenadeImage,
             pickupHandgun, pickupRifle, pickupBow, pickupBat,
             pickupRifleAmmo, pickupArrowBag, pickupFireArrowBag,
-            menuBackground, menuLogo, startButton,
+            menuBackground, menuLogo, "MainLogoBachataAnimatonSpriteSheet1", startButton,
             inventoryButton, inventoryWeapons, iconHandgun,
             "road",
             "Level1", "Level2", "Level3", "Level4", "Level5"

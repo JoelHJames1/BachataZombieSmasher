@@ -55,6 +55,7 @@ final class Zombie: SKSpriteNode {
         guard !biteFrames.isEmpty else { return }
         let anim = SKAction.animate(with: biteFrames, timePerFrame: 1.0/10.0)
         run(.repeatForever(anim), withKey: "anim")
+        run(AudioManager.sfx("ZombieSound"))
     }
 
     func update(dt: TimeInterval, currentTime: TimeInterval) {
@@ -90,7 +91,10 @@ final class Zombie: SKSpriteNode {
 
     private func playHit(kind: HitKind) {
         state = .hit
-        physicsBody?.velocity.dx = 0
+        physicsBody?.velocity = .zero
+        // Reset the bite cooldown so the zombie can't immediately chomp the
+        // player the instant the hit-flinch finishes.
+        lastBiteAt = CACurrentMediaTime()
         removeAction(forKey: "anim")
         let frames: [SKTexture]
         switch kind {
@@ -111,6 +115,7 @@ final class Zombie: SKSpriteNode {
         physicsBody?.velocity = .zero
         physicsBody?.affectedByGravity = false
         removeAction(forKey: "anim")
+        run(AudioManager.sfx("ZombieDyingSound"))
         let frames: [SKTexture]
         switch kind {
         case .grenade:   frames = AssetCatalog.zombieGrenadeDeathFrames()

@@ -63,6 +63,7 @@ final class Player: SKSpriteNode {
         if abs(movingDir) > 0.05 {
             xScale = movingDir >= 0 ? 1 : -1
             if state == .idle || state == .still {
+                if state == .idle { AudioManager.stopMusic() }
                 enterRun()
             } else if state == .run, action(forKey: "anim") == nil {
                 // Walk loop got dropped (e.g., after an attack sequence) —
@@ -94,6 +95,7 @@ final class Player: SKSpriteNode {
     func jump() {
         guard state != .dead, state != .jump, state != .hit, let body = physicsBody else { return }
         if abs(body.velocity.dy) > 1 { return }
+        if state == .idle { AudioManager.stopMusic() }
         body.applyImpulse(CGVector(dx: 0, dy: jumpImpulse))
         enterJump()
     }
@@ -103,6 +105,7 @@ final class Player: SKSpriteNode {
     private func enterIdle() {
         state = .idle
         removeAction(forKey: "anim")
+        AudioManager.playMusic(named: "BachateBGSound")
         guard !idleFrames.isEmpty else {
             texture = runFrames.first
             return
@@ -154,6 +157,7 @@ final class Player: SKSpriteNode {
     func tryFire(at currentTime: TimeInterval, scene: GameScene) {
         guard state != .dead, state != .hit else { return }
         if currentTime - lastFireAt < weapon.fireInterval { return }
+        if state == .idle { AudioManager.stopMusic() }
 
         var firedFire = false
         if weapon == .bow, fireArrowAmmo > 0 {
@@ -169,6 +173,13 @@ final class Player: SKSpriteNode {
         lastFireAt = currentTime
         playAttackAnimation(useFireArrow: firedFire)
         scene.spawnAttack(from: self, weapon: weapon, isFire: firedFire)
+
+        switch weapon {
+        case .handgun:  run(AudioManager.sfx("HandGunShootingSound"))
+        case .bow:      run(AudioManager.sfx("BowShootingSound"))
+        case .rifle:    run(AudioManager.sfx("HandGunShootingSound"))
+        default:        break
+        }
     }
 
     private func playAttackAnimation(useFireArrow: Bool) {
@@ -214,6 +225,7 @@ final class Player: SKSpriteNode {
 
     func takeDamage(_ amount: Int) {
         guard state != .dead, state != .hit else { return }
+        if state == .idle { AudioManager.stopMusic() }
         health = max(0, health - amount)
         if health == 0 {
             die(byGrenade: false)
@@ -224,6 +236,7 @@ final class Player: SKSpriteNode {
 
     func die(byGrenade: Bool) {
         guard state != .dead else { return }
+        AudioManager.stopMusic()
         state = .dead
         physicsBody?.velocity = .zero
         physicsBody?.categoryBitMask = PhysicsCategory.none

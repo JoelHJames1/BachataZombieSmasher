@@ -94,6 +94,7 @@ final class Explosion: SKSpriteNode {
         body.affectedByGravity = false
         body.isDynamic = false
         physicsBody = body
+        run(AudioManager.sfx("GrenadeExplosionSound"))
         run(.sequence([
             .animate(with: frames, timePerFrame: 1.0/14.0),
             .removeFromParent()
